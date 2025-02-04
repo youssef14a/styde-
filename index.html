@@ -1,343 +1,526 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>جدول المذاكرة</title>
-  <style>
-    body {
-      font-family: 'Tajawal', sans-serif;
-      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
-      margin: 0;
-      padding: 20px;
-      overflow-x: hidden;
-      position: relative;
-    }
-    h1 {
-      text-align: center;
-      color: #333;
-      font-size: 3rem;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-      animation: fadeInDown 1.5s ease-in-out;
-    }
-    .container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-top: 20px;
-    }
-    .month-section {
-      margin-bottom: 40px;
-      width: 100%;
-      max-width: 800px; /* تحديد عرض الجدول */
-      animation: slideIn 1s ease-in-out;
-    }
-    .month-title {
-      text-align: center;
-      font-size: 2rem;
-      color: #4CAF50;
-      margin-bottom: 20px;
-      font-weight: bold;
-      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 20px 0;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      border-radius: 8px;
-      overflow: hidden;
-      animation: fadeIn 1s ease-in-out;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 12px;
-      text-align: center;
-      transition: background-color 0.3s ease;
-    }
-    th {
-      background-color: #4CAF50;
-      color: white;
-      font-weight: bold;
-      font-size: 1.1rem;
-    }
-    tr.completed-row td {
-      background-color: #d4edda;
-      color: #155724;
-    }
-    td button {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.3s ease, transform 0.3s ease;
-      font-size: 1rem;
-    }
-    td button.start-btn {
-      background-color: #007bff;
-      color: white;
-    }
-    td button.end-btn {
-      background-color: #28a745;
-      color: white;
-    }
-    td button:hover {
-      transform: scale(1.1);
-    }
-    .floating-total-hours {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background-color: #fff;
-      padding: 15px 20px;
-      border-radius: 50px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: #333;
-      z-index: 1000;
-      animation: floatUp 2s ease-in-out infinite alternate;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeInDown {
-      from { opacity: 0; transform: translateY(-50px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateX(-50px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes floatUp {
-      from { transform: translateY(0); }
-      to { transform: translateY(-10px); }
-    }
-  </style>
-</head>
-<body>
-  <h1>جدول المذاكرة لمدة 90 يومًا</h1>
-  <div class="floating-total-hours" id="floatingTotalHours">إجمالي الساعات: 0 / 225 (0%)</div>
-  <div class="container">
-    <!-- سيتم تعبئة الأقسام بواسطة JavaScript -->
-  </div>
-
-  <script>
-    const container = document.querySelector('.container');
-    const floatingTotalHoursElement = document.getElementById('floatingTotalHours');
-    let totalHoursCompleted = 0;
-
-    // تحميل البيانات من localStorage إذا كانت موجودة
-    const savedData = JSON.parse(localStorage.getItem('studySchedule')) || {
-      totalHoursCompleted: 0,
-      days: []
-    };
-
-    totalHoursCompleted = savedData.totalHoursCompleted;
-
-    function createStudySchedule() {
-      const months = [
-        { name: 'الشهر الأول', hoursPerDay: 1.5 },
-        { name: 'الشهر الثاني', hoursPerDay: 2.5 },
-        { name: 'الشهر الثالث', hoursPerDay: 3.5 }
-      ];
-
-      // تاريخ البداية
-      const startDate = new Date(2025, 1, 4); // 4 فبراير 2025
-
-      months.forEach((month, monthIndex) => {
-        const monthSection = document.createElement('div');
-        monthSection.className = 'month-section';
-
-        const monthTitle = document.createElement('h2');
-        monthTitle.textContent = month.name;
-        monthTitle.className = 'month-title';
-        monthSection.appendChild(monthTitle);
-
-        const table = document.createElement('table');
-        const thead = document.createElement('thead');
-        const tbody = document.createElement('tbody');
-
-        const headerRow = document.createElement('tr');
-        ['اليوم', 'التاريخ', 'الوقت', 'عدد الساعات', 'الإجراءات'].forEach(headerText => {
-          const th = document.createElement('th');
-          th.textContent = headerText;
-          headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
-
-        for (let i = 1; i <= 30; i++) {
-          const dayCounter = monthIndex * 30 + i;
-          const row = document.createElement('tr');
-
-          // استعادة حالة اليوم من localStorage
-          const savedDay = savedData.days.find(d => d.day === dayCounter) || {};
-          const elapsedTime = savedDay.elapsedTime || 0;
-          const isCompleted = savedDay.status === 'completed';
-          const startTime = savedDay.startTime;
-
-          // حساب التاريخ لكل يوم
-          const currentDate = new Date(startDate);
-          currentDate.setDate(startDate.getDate() + dayCounter - 1);
-
-          const formattedDate = `${currentDate.getDate()} ${getMonthName(currentDate.getMonth())} ${currentDate.getFullYear()}`;
-          const formattedTime = elapsedTimeToTime(elapsedTime, month.hoursPerDay);
-
-          const dayCell = document.createElement('td');
-          dayCell.textContent = `اليوم ${dayCounter}`;
-          row.appendChild(dayCell);
-
-          const dateCell = document.createElement('td');
-          dateCell.textContent = formattedDate;
-          row.appendChild(dateCell);
-
-          const timeCell = document.createElement('td');
-          timeCell.textContent = formattedTime;
-          row.appendChild(timeCell);
-
-          const hoursCell = document.createElement('td');
-          hoursCell.textContent = month.hoursPerDay + ' ساعة';
-          row.appendChild(hoursCell);
-
-          const actionsCell = document.createElement('td');
-          const startButton = document.createElement('button');
-          startButton.textContent = 'ابدأ';
-          startButton.className = 'start-btn';
-
-          const endButton = document.createElement('button');
-          endButton.textContent = isCompleted ? 'You Did It!' : 'Do It';
-          endButton.className = 'end-btn';
-          endButton.style.display = isCompleted ? 'inline-block' : 'none';
-
-          if (isCompleted) {
-            row.classList.add('completed-row');
-            row.style.backgroundColor = '#d4edda';
-          }
-
-          let intervalId = null;
-
-          // قائمة بألوان متعددة لمحاكاة المبة الملونة
-          const colors = ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F3'];
-          let colorIndex = 0;
-
-          // استئناف العد إذا كان قد بدأ بالفعل
-          if (startTime && !isCompleted) {
-            const currentTime = Date.now();
-            const elapsedMilliseconds = currentTime - startTime;
-            const newElapsedTime = Math.floor(elapsedMilliseconds / 1000) + elapsedTime;
-
-            if (newElapsedTime < month.hoursPerDay * 3600) {
-              savedDay.elapsedTime = newElapsedTime;
-              savedDay.startTime = currentTime;
-              saveData();
-
-              intervalId = setInterval(() => updateTimer(row, timeCell, savedDay, month, endButton), 1000);
-              startButton.style.display = 'none';
-              endButton.style.display = 'inline-block';
-            } else {
-              savedDay.elapsedTime = month.hoursPerDay * 3600;
-              savedDay.status = 'completed';
-              totalHoursCompleted += month.hoursPerDay;
-              updateTotalHours();
-              saveData();
-
-              row.classList.add('completed-row');
-              row.style.backgroundColor = '#d4edda';
-              timeCell.textContent = `${month.hoursPerDay.toFixed(1)} ساعة`;
-              startButton.style.display = 'none';
-              endButton.textContent = 'You Did It!';
-              endButton.style.display = 'inline-block';
-            }
-          }
-
-          startButton.addEventListener('click', () => {
-            if (!intervalId) {
-              savedDay.startTime = Date.now();
-              savedDay.elapsedTime = savedDay.elapsedTime || 0;
-              saveData();
-
-              intervalId = setInterval(() => updateTimer(row, timeCell, savedDay, month, endButton), 1000);
-              startButton.style.display = 'none';
-              endButton.style.display = 'inline-block';
-            }
-          });
-
-          actionsCell.appendChild(startButton);
-          actionsCell.appendChild(endButton);
-          row.appendChild(actionsCell);
-
-          tbody.appendChild(row);
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جدول الـ 90 يوم</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 2.5em;
+            letter-spacing: 3px;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            animation: fadeInUp 1.5s ease-in-out;
+        }
+        .total-hours {
+            text-align: center;
+            font-size: 1.8em;
+            color: #1abc9c;
+            margin-bottom: 30px;
+            animation: slideInFromTop 1s ease-in-out;
         }
 
-        table.appendChild(thead);
-        table.appendChild(tbody);
-        monthSection.appendChild(table);
-        container.appendChild(monthSection);
-      });
+        /* Progress Bar */
+        .progress-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 40px auto;
+            position: relative;
+        }
+        .progress-bar {
+            width: 80%;
+            height: 25px;
+            background-color: #ecf0f1;
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1), inset 0 2px 5px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .progress {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #1abc9c, #3498db, #9b59b6);
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 30px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            animation: progressBarAnimation 2s ease-in-out;
+        }
+        .progress-text {
+            font-size: 1.4em;
+            color: #2c3e50;
+            margin-left: 15px;
+            font-weight: bold;
+            animation: fadeIn 1.5s ease-in-out;
+        }
 
-      updateTotalHours();
-    }
+        /* Month Section */
+        .month-container {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1), 0 6px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+        }
+        .month-container:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        .month-header {
+            text-align: center;
+            font-size: 2em;
+            color: #2980b9;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            animation: slideInFromLeft 1s ease-in-out;
+        }
 
-    function updateTimer(row, timeCell, savedDay, month, endButton) {
-      const currentTime = Date.now();
-      const elapsedMilliseconds = currentTime - savedDay.startTime;
-      savedDay.elapsedTime = Math.floor(elapsedMilliseconds / 1000) + (savedDay.elapsedTime || 0);
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            border: none;
+            padding: 15px;
+            text-align: center;
+            background-color: #ecf0f1;
+            transition: all 0.3s ease;
+        }
+        th {
+            background: linear-gradient(135deg, #1abc9c, #3498db, #9b59b6);
+            color: #fff;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 10px;
+        }
+        tr:nth-child(even) td {
+            background-color: #f9f9f9;
+        }
+        tr:hover td {
+            background-color: #d1e7dd;
+            transform: scale(1.02);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
 
-      const hours = Math.floor(savedDay.elapsedTime / 3600);
-      const minutes = Math.floor((savedDay.elapsedTime % 3600) / 60);
-      const seconds = savedDay.elapsedTime % 60;
-      timeCell.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        /* Timer and Buttons */
+        .timer {
+            font-size: 1.8em;
+            text-align: center;
+            margin-top: 15px;
+            padding: 15px 25px;
+            border-radius: 50%;
+            background: #ffcccc;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            animation: pulse 1.5s infinite;
+        }
+        .timer.active {
+            animation: blink-timer 1s infinite alternate;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background: linear-gradient(135deg, #1abc9c, #3498db, #9b59b6);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+            animation: buttonHover 1.5s infinite;
+        }
+        button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        button.disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .reset-button {
+            margin: 30px auto;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+            animation: buttonHover 1.5s infinite;
+        }
+        .reset-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
 
-      // تغيير لون الصف بشكل ديناميكي باستخدام ألوان مختلفة
-      row.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        @keyframes fadeInUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideInFromTop {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideInFromLeft {
+            from {
+                transform: translateX(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes blink-timer {
+            0% {
+                background-color: #ffcccc;
+                transform: scale(1);
+                box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+            }
+            100% {
+                background-color: #ff6b6b;
+                transform: scale(1.1);
+                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            }
+        }
+        @keyframes progressBarAnimation {
+            0% {
+                width: 0%;
+            }
+            100% {
+                width: 100%;
+            }
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+            }
+        }
+        @keyframes buttonHover {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+            }
+            50% {
+                transform: scale(1.02);
+                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>جدول الـ 90 يوم</h1>
+    <div id="total-hours" class="total-hours"></div>
+    <div id="progress-container" class="progress-container">
+        <div id="progress-bar" class="progress-bar">
+            <div id="progress" class="progress"></div>
+        </div>
+        <span id="progress-text" class="progress-text">0%</span>
+    </div>
+    <div id="study-plan"></div>
+    <button id="reset-button" class="reset-button">إعادة الضبط</button>
 
-      if (savedDay.elapsedTime >= month.hoursPerDay * 3600) {
-        clearInterval(intervalId);
-        savedDay.elapsedTime = month.hoursPerDay * 3600;
-        savedDay.status = 'completed';
-        totalHoursCompleted += month.hoursPerDay;
-        updateTotalHours();
-        saveData();
+    <script>
+        const months = ["يناير", "فبراير", "مارس"];
+        const daysOfWeek = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
+        const studyHours = [1, 2, 3];
+        let totalStudyHours = studyHours.reduce((acc, hours) => acc + (hours * 30), 0); // Total hours for 90 days
+        let completedDays = 0;
 
-        row.classList.add('completed-row');
-        row.style.backgroundColor = '#d4edda';
-        timeCell.textContent = `${month.hoursPerDay.toFixed(1)} ساعة`;
-        endButton.textContent = 'You Did It!';
-        endButton.style.backgroundColor = '#28a745';
-      }
-    }
+        // Load saved data from Local Storage
+        const savedData = JSON.parse(localStorage.getItem("studyPlanData")) || {
+            totalStudyHours: totalStudyHours,
+            completedDays: 0,
+            dayStates: Array(90).fill({ completed: false, seconds: 0, deleted: false })
+        };
 
-    function getMonthName(monthIndex) {
-      const months = [
-        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
-      ];
-      return months[monthIndex];
-    }
+        totalStudyHours = savedData.totalStudyHours;
+        completedDays = savedData.completedDays;
 
-    function elapsedTimeToTime(elapsedTime, hoursPerDay) {
-      if (elapsedTime >= hoursPerDay * 3600) {
-        return `${hoursPerDay.toFixed(1)} ساعة`;
-      }
-      const hours = Math.floor(elapsedTime / 3600);
-      const minutes = Math.floor((elapsedTime % 3600) / 60);
-      const seconds = elapsedTime % 60;
-      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
+        function createStudyPlan() {
+            const container = document.getElementById("study-plan");
+            const totalHoursDiv = document.getElementById("total-hours");
+            const progressBar = document.getElementById("progress");
+            const progressText = document.getElementById("progress-text");
+            const resetButton = document.getElementById("reset-button");
 
-    function updateTotalHours() {
-      const percentage = ((totalHoursCompleted / 225) * 100).toFixed(1);
-      floatingTotalHoursElement.textContent = `إجمالي الساعات: ${totalHoursCompleted.toFixed(1)} / 225 (${percentage}%)`;
-    }
+            // Display total hours initially
+            totalHoursDiv.textContent = `إجمالي الساعات المتبقية: ${totalStudyHours} ساعة`;
 
-    function saveData() {
-      savedData.totalHoursCompleted = totalHoursCompleted;
-      localStorage.setItem('studySchedule', JSON.stringify(savedData));
-    }
+            // Update progress bar
+            const progressPercentage = (completedDays / 90) * 100;
+            progressBar.style.width = `${progressPercentage}%`;
+            progressText.textContent = `${Math.round(progressPercentage)}%`;
 
-    // تهيئة الجدول وتحديث إجمالي الساعات
-    createStudySchedule();
-  </script>
+            // Reset button functionality
+            resetButton.addEventListener("click", () => {
+                localStorage.removeItem("studyPlanData");
+                location.reload();
+            });
+
+            months.forEach((month, monthIndex) => {
+                const monthDiv = document.createElement("div");
+                monthDiv.className = "month-container";
+
+                // Month Header
+                const monthHeader = document.createElement("div");
+                monthHeader.className = "month-header";
+                monthHeader.textContent = `شهر ${month}`;
+                monthDiv.appendChild(monthHeader);
+
+                const table = document.createElement("table");
+                const thead = document.createElement("thead");
+                const tbody = document.createElement("tbody");
+
+                // Table headers
+                const headerRow = document.createElement("tr");
+                ["اليوم", "التاريخ", "الوقت", "العداد", "التحكم"].forEach(headerText => {
+                    const th = document.createElement("th");
+                    th.textContent = headerText;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                // Table rows
+                for (let day = 1; day <= 30; day++) {
+                    const row = document.createElement("tr");
+
+                    // Day of the week
+                    const dayOfWeekCell = document.createElement("td");
+                    dayOfWeekCell.textContent = daysOfWeek[(day - 1) % 7];
+                    row.appendChild(dayOfWeekCell);
+
+                    // Date
+                    const dateCell = document.createElement("td");
+                    dateCell.textContent = `${day} ${month}`;
+                    row.appendChild(dateCell);
+
+                    // Study time
+                    const timeCell = document.createElement("td");
+                    timeCell.textContent = `${studyHours[monthIndex]} ساعة`;
+                    row.appendChild(timeCell);
+
+                    // Timer
+                    const timerCell = document.createElement("td");
+                    const timerDiv = document.createElement("div");
+                    timerDiv.className = "timer";
+                    timerDiv.textContent = "00:00:00";
+                    timerCell.appendChild(timerDiv);
+                    row.appendChild(timerCell);
+
+                    // Control Buttons
+                    const controlCell = document.createElement("td");
+
+                    // Start Button
+                    const startButton = document.createElement("button");
+                    startButton.textContent = "ابدأ";
+                    let interval = null;
+
+                    // Done Button
+                    const doneButton = document.createElement("button");
+                    doneButton.textContent = "تم";
+                    doneButton.classList.add("disabled");
+                    doneButton.style.display = "none"; // Hidden by default
+
+                    const dayIndex = (monthIndex * 30) + (day - 1);
+                    const dayState = savedData.dayStates[dayIndex];
+
+                    if (dayState.deleted) {
+                        // Skip rendering this day if it's marked as deleted
+                        continue;
+                    }
+
+                    if (dayState.completed) {
+                        startButton.classList.add("disabled");
+                        startButton.textContent = "انتهى";
+                        timerDiv.textContent = "01:00:00"; // Completed state
+                        doneButton.style.display = "inline-block"; // Show the "Done" button
+                    } else if (dayState.seconds > 0) {
+                        setTimeout(() => {
+                            startTimer(
+                                timerDiv,
+                                studyHours[monthIndex],
+                                row,
+                                startButton,
+                                totalHoursDiv,
+                                progressBar,
+                                progressText,
+                                dayIndex,
+                                dayState.seconds
+                            );
+                            activateRow(row);
+                        }, 500);
+                    }
+
+                    startButton.addEventListener("click", () => {
+                        if (!startButton.classList.contains("disabled")) {
+                            startButton.classList.add("disabled");
+                            startTimer(
+                                timerDiv,
+                                studyHours[monthIndex],
+                                row,
+                                startButton,
+                                totalHoursDiv,
+                                progressBar,
+                                progressText,
+                                dayIndex
+                            );
+                            activateRow(row);
+                        }
+                    });
+
+                    doneButton.addEventListener("click", () => {
+                        // Mark the day as deleted in Local Storage
+                        const savedData = JSON.parse(localStorage.getItem("studyPlanData")) || {};
+                        savedData.dayStates[dayIndex].deleted = true;
+                        localStorage.setItem("studyPlanData", JSON.stringify(savedData));
+
+                        // Remove the row from the table
+                        row.remove();
+                    });
+
+                    controlCell.appendChild(startButton);
+                    controlCell.appendChild(doneButton);
+                    row.appendChild(controlCell);
+                    tbody.appendChild(row);
+                }
+
+                table.appendChild(tbody);
+                monthDiv.appendChild(table);
+                container.appendChild(monthDiv);
+            });
+        }
+
+        function startTimer(
+            timerElement,
+            hours,
+            row,
+            button,
+            totalHoursDiv,
+            progressBar,
+            progressText,
+            dayIndex,
+            resumeSeconds = 0
+        ) {
+            let seconds = resumeSeconds || 0;
+            const totalSeconds = hours * 3600;
+
+            const interval = setInterval(() => {
+                if (seconds >= totalSeconds) {
+                    clearInterval(interval);
+                    timerElement.classList.remove("active");
+                    row.classList.remove("active-row");
+                    button.textContent = "انتهى";
+
+                    // Enable the "Done" button
+                    const doneButton = row.querySelector("button:last-child");
+                    doneButton.classList.remove("disabled");
+                    doneButton.style.display = "inline-block";
+
+                    // Decrease total hours and update progress bar
+                    totalStudyHours -= hours;
+                    completedDays++;
+                    totalHoursDiv.textContent = `إجمالي الساعات المتبقية: ${totalStudyHours} ساعة`;
+                    const progressPercentage = (completedDays / 90) * 100;
+                    progressBar.style.width = `${progressPercentage}%`;
+                    progressText.textContent = `${Math.round(progressPercentage)}%`;
+
+                    // Add visual effect to progress bar
+                    progressBar.style.transition = "width 0.5s ease, background-color 0.5s ease";
+                    progressBar.style.backgroundColor = "#28a745"; // Green color for completion
+                    setTimeout(() => {
+                        progressBar.style.backgroundColor = "#007bff"; // Back to blue
+                    }, 500);
+
+                    // Save state to Local Storage
+                    const savedData = JSON.parse(localStorage.getItem("studyPlanData")) || {};
+                    savedData.totalStudyHours = totalStudyHours;
+                    savedData.completedDays = completedDays;
+                    savedData.dayStates[dayIndex] = { completed: true, seconds: 0 }; // Mark as completed
+                    localStorage.setItem("studyPlanData", JSON.stringify(savedData));
+                } else {
+                    const hrs = Math.floor(seconds / 3600).toString().padStart(2, "0");
+                    const mins = Math.floor((seconds % 3600) / 60).toString().padStart(2, "0");
+                    const secs = (seconds % 60).toString().padStart(2, "0");
+                    timerElement.textContent = `${hrs}:${mins}:${secs}`;
+                    seconds++;
+
+                    // Save current seconds to Local Storage
+                    const savedData = JSON.parse(localStorage.getItem("studyPlanData")) || {};
+                    savedData.dayStates[dayIndex] = { completed: false, seconds };
+                    localStorage.setItem("studyPlanData", JSON.stringify(savedData));
+                }
+            }, 1000);
+
+            timerElement.classList.add("active");
+        }
+
+        function activateRow(row) {
+            row.classList.add("active-row");
+        }
+
+        createStudyPlan();
+    </script>
 </body>
 </html>
